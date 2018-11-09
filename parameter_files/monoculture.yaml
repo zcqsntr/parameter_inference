@@ -1,0 +1,35 @@
+
+ode_params:
+  - 0.5 # q (0-Rmax)
+  - 480000. # y (10**12)
+  - 0.6 # Rmax (0.4 - 3)
+  - 0.00048776 # Km (2)
+
+Q_params:
+  - 1 # num_species
+  - 10 # num_x_states
+  - [0., 1000.] # x_bounds
+  - 2 # num_C0_states
+  - [0., 0.1] #C0_bounds
+  - 0.9 #gamma
+  - 20000.
+  - 1. #initial_C0
+
+
+train_params:
+  - 500000 # num_episodes
+  - 100 # test_freq
+  - 9700 # explore_denom
+  - 10000 # step_denom
+  - 1 # NIM_TEMP
+  - 100 # MAX_TEMP
+  - 1000 # T_MAX
+  - 0.05 # MIN_STEP_SIZE
+  - 0.5 # MAX_STEP_SIZE
+  - 0. #MIN_EXPLORE_RATE
+
+
+
+noise_params:
+  - False # noise
+  - 0.1 # error
