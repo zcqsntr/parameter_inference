@@ -21,7 +21,6 @@ from mpl_toolkits.mplot3d import Axes3D
 import math
 
 
-
 def six_hump_camel(X,Y):
     '''
     test function for optimisation algorithms
@@ -59,7 +58,6 @@ class Particle():
     def move_and_update(self, loss_function, domain):
 
         # if particle wont move out of bounds move it
-
         if ((domain[:,0]  < (self.position + self.velocity)).all() and  ((self.position + self.velocity) < domain[:,1]).all()):
             self.position += self.velocity
         else:
@@ -74,14 +72,25 @@ class Particle():
 
         return current_loss, self.position
 
-    def step(self, loss_function, domain, global_best_position, c1, c2):
+    def step(self, loss_function, grad_func, domain, global_best_position, c1, c2):
         self.update_velocity(global_best_position, c1, c2)
         loss, position = self.move_and_update(loss_function, domain)
+        print('before: ', loss, position)
+        loss, position = self.gradient_descent(loss_function, grad_func)
+        print('after: ', loss, position)
+        return loss, position
+
+    def gradient_descent(self, loss_func, grad_func):
+        position = adam(grad_func, self.position, num_iters = 10)
+        loss = loss_func(*position)
+        if loss < self.personal_best_value:
+            self.personal_best_value = loss
+            self.personal_best_position = position
         return loss, position
 
 
 class Swarm():
-    def __init__(self, loss_function, domain, n_particles, c1, c2):
+    def __init__(self, loss_function, grad_func, domain, n_particles, c1, c2):
         self.global_best_position = None
         self.global_best_value = None
         self.particles = []
@@ -90,8 +99,8 @@ class Swarm():
         self.c2 = c2
         self.loss_function = loss_function
         self.domain = domain
+        self.grad_func = grad_func
         self.initialise_particles(domain, n_particles)
-
 
     def initialise_particles(self, domain, n_particles):
         ''' sample postions within domain and put particles there'''
@@ -119,21 +128,18 @@ class Swarm():
 
     def step(self):
         for particle in self.particles:
-            loss, position = particle.step(self.loss_function,self.domain, self.global_best_position, self.c1, self.c2)
+            loss, position = particle.step(self.loss_function, self.grad_func, self.domain, self.global_best_position, self.c1, self.c2)
 
             if loss < self.global_best_value: #OK
                 self.global_best_value = loss
                 self.global_best_position = position.copy()
 
 
-
     def find_minimum(self,n_steps):
         for _ in range(n_steps):
             self.step()
-            print(self.global_best_value, self.global_best_position)
+
         return self.global_best_value, self.global_best_position
-
-
 
 
 '''
@@ -155,9 +161,12 @@ for each time point
 
 return global best solution
 '''
-
+'''
 x = np.linspace(-3,3,100)
 y = np.linspace(-2,2,100)
+'''
+x = np.linspace(-40,40,100)
+y = np.linspace(-40,40,100)
 
 X,Y = np.meshgrid(x,y)
 
@@ -172,9 +181,18 @@ cb = fig.colorbar(im)
 #plt.show()
 
 domain = np.array([[-3, 3],[-2,2]])
-n_particles = 1000
+n_particles = 100
 
-swarm = Swarm(six_hump_camel, domain, n_particles, 0.01, 0.01)
+grad_func = grad(ackleys_function)
+
+def grad_wrapper(param_vec, i):
+    '''
+    for the autograd optimisers
+    '''
+
+    return grad_func(*param_vec)
+
+swarm = Swarm(ackleys_function, grad_wrapper, domain, n_particles, 0.01, 0.01)
 print(six_hump_camel(0.0898, -0.7126))
 print(swarm.find_minimum(50))
 
