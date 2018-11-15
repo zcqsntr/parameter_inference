@@ -247,7 +247,7 @@ learning_scaling = np.array([0.1,0.1,0.1,0.1,500000,500000,1000000,1000000, 1, 1
 
 #for weight in [1,10,100,1000,10000,100000]:
 for weight in [1,10,100,1000,10000,100000]:
-    param_vec = true_params
+    param_vec = np.array([-0.12, -0.08, -0.12, -0.08, 500000, 460000, 500000, 540000, 2.2, 1.8, 0.00049, 0.00000102115, 0.00006845928, 0.00006845928])
 
     xSol = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/double_aux.npy')
     Cins = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/double_aux_Cins.npy')
@@ -267,7 +267,7 @@ for weight in [1,10,100,1000,10000,100000]:
 
 
 
-    for i in range(100):
+    for i in range(500):
 
         alpha = get_learning_rate(i, 0.05,  0.5, 100) * learning_scaling
 
@@ -322,7 +322,7 @@ for weight in [1,10,100,1000,10000,100000]:
         print()
 
     param_vecs = np.array(param_vecs)
-    folder = 'no_k'
+    folder = 'squared_loss_with_priors'
 
     plt.figure()
     plt.plot(param_losses, label = 'real parameters')
@@ -331,7 +331,7 @@ for weight in [1,10,100,1000,10000,100000]:
     plt.xlabel('Iteration')
     plt.ylabel('Sum of square loss of the parameters')
     plt.legend()
-    plt.savefig('./'+folder+'/parameter_loss_A' + str(weight) + '.png')
+    plt.savefig('/Users/Neythen/Desktop/masters_project/parameter_estimation/bayesian_online/'+folder+'/parameter_loss_A' + str(weight) + '.png')
 
     plt.figure()
     plt.plot(MAP_losses, label = 'MAP loss')
@@ -341,7 +341,7 @@ for weight in [1,10,100,1000,10000,100000]:
     plt.xlabel('Iteration')
     plt.ylabel('Loss in predicted N')
     plt.legend()
-    plt.savefig('./'+folder+'/N_loss_A_and_umax' + str(weight) + '.png')
+    plt.savefig('/Users/Neythen/Desktop/masters_project/parameter_estimation/bayesian_online/'+folder+'/N_loss_A_and_umax' + str(weight) + '.png')
 
     plt.figure()
     [a11, a12, a21, a22] = plt.plot(param_vecs[:,:4])
@@ -349,7 +349,7 @@ for weight in [1,10,100,1000,10000,100000]:
     plt.title('A evolution')
     plt.xlabel('Iteration')
     plt.ylabel('params')
-    plt.savefig('./'+folder+'/A_evolution' + str(weight) + '.png')
+    plt.savefig('/Users/Neythen/Desktop/masters_project/parameter_estimation/bayesian_online/'+folder+'/A_evolution' + str(weight) + '.png')
 
     plt.figure()
     [umax1, umax2] = plt.plot(param_vecs[:,8:10])
@@ -357,7 +357,7 @@ for weight in [1,10,100,1000,10000,100000]:
     plt.title('Umax evolution')
     plt.xlabel('Iteration')
     plt.ylabel('params')
-    plt.savefig('./'+folder+'/umax_evolution' + str(weight) + '.png')
+    plt.savefig('/Users/Neythen/Desktop/masters_project/parameter_estimation/bayesian_online/'+folder+'/umax_evolution' + str(weight) + '.png')
 
     plt.figure()
     [y1, y2, y11, y22] = plt.plot(param_vecs[:,4:8])
@@ -365,7 +365,7 @@ for weight in [1,10,100,1000,10000,100000]:
     plt.title('y evolution')
     plt.xlabel('Iteration')
     plt.ylabel('params')
-    plt.savefig('./'+folder+'/y_evolution' + str(weight) + '.png')
+    plt.savefig('/Users/Neythen/Desktop/masters_project/parameter_estimation/bayesian_online/'+folder+'/y_evolution' + str(weight) + '.png')
     plt.show()
 
 
