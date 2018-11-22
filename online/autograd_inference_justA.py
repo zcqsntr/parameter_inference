@@ -6,9 +6,8 @@ import yaml
 import matplotlib.pyplot as plt
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(os.path.join(ROOT_DIR, 'CBcurl'))
+sys.path.append(os.path.join(ROOT_DIR, 'app', 'CBcurl_master', 'CBcurl'))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 
 from utilities import *
 from inference_utils import *
@@ -18,9 +17,9 @@ from autograd.scipy.integrate import odeint
 from autograd.builtins import tuple
 from autograd.misc.optimizers import adam
 import autograd.numpy.random as npr
+import matplotlib
 
-
-
+matplotlib.rcParams.update({'font.size': 15})
 
 '''
 file to estimate just A parameters using autograd
@@ -28,14 +27,14 @@ file to estimate just A parameters using autograd
 
 def sdot(N, t, A_vec, Cin, C, C0):
 
-    params = [1., 0.5]
 
-    Rmax = np.array([2.,2.])
-    Km = np.array([0.00049,0.00000102115])
-    Km3 = np.array([0.00006845928, 0.00006845928])
+    Rmax = ode_params[4]
+    Km = ode_params[5]
+    Km3 = ode_params[6]
 
     # extract parameters
-    C0in, q = params
+    C0in, q = ode_params[:2]
+    # extract parameters
 
     R = monod(C, C0, Rmax, Km, Km3)
 
@@ -75,8 +74,6 @@ def monod(C, C0, Rmax, Km, Km0):
     growth_rate = ((Rmax*C)/ (Km + C)) * (C0/ (Km0 + C0))
 
     return growth_rate
-
-
 
 
 def likelihood_objective(observed_dN, param_vec):
@@ -129,16 +126,11 @@ initial_C = param_dict['Q_params'][9]
 initial_C0 = param_dict['Q_params'][10]
 
 
-
-
 # parameters to learn
-param_vec = np.array([-0.2,-0.2, -0.2, -0.2])
-
+param_vec = np.array([-0.5, -0.5, -0.5, -0.5])
 
 
 labels = ['N1', 'N2', 'C1', 'C2', 'C0']
-
-
 
 
 def grad_wrapper(param_vec, i):
@@ -164,7 +156,7 @@ losses = []
 param_losses = []
 actual_A = Q_params[0]
 
-for i in range(300000):
+for i in range(100):
     Cin = Cins[i,:]
     sol = fullSol[i,:]
     N = sol[:2]
@@ -189,6 +181,8 @@ for i in range(300000):
     loss = squared_loss(param_vec, N, Cin, next_N, C, C_0)
     losses.append(loss)
     param_losses.append(np.sum((param_vec-actual_A.reshape(4,))**2))
+    print()
+    print(i)
     print(alpha)
     print(loss)
     print(param_vec)

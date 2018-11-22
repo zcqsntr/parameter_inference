@@ -55,7 +55,6 @@ def sdot(S, t, param_vec, Cin): # X is population vector, t is time, R is intrin
     Km3 = param_vec[12:14]
     '''
 
-
     num_species = 2
     # extract variables
     N = np.array(S[:num_species])

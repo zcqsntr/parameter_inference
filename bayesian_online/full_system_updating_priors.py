@@ -492,7 +492,8 @@ for i in range(n_param_sets - 1):
     plt.plot(square_losses[i,:])
 plt.plot(square_losses[-1,:], label = 'true params', color = 'black')
 plt.legend()
-plt.xlabel('MAP loss')
-plt.ylabel('time')
+plt.xlabel('time')
+plt.ylabel('MAP_loss')
+plt.ylim([-10,200])
 
 plt.show()

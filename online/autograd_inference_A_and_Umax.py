@@ -6,8 +6,9 @@ import yaml
 import matplotlib.pyplot as plt
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(os.path.join(ROOT_DIR, 'CBcurl'))
+sys.path.append(os.path.join(ROOT_DIR, 'app', 'CBcurl_master', 'CBcurl'))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 
 from utilities import *
@@ -30,15 +31,13 @@ def sdot(N, t, param_vec, Cin, C, C0):
 
     A = np.reshape(param_vec[:4], (2,2))
     Rmax = param_vec[4:6]
+    #Rmax = np.array([2,2])
     #Km = param_vec[6:8]
-    Km = np.array([0.00049, 0.00000102115])
-    Km3 = np.array([0.00006845928, 0.00006845928])
-
-
-
+    Km = ode_params[5]
+    Km3 = ode_params[6]
 
     # extract parameters
-    C0in, q = [1., 0.5]
+    C0in, q = ode_params[:2]
 
     R = monod(C, C0, Rmax, Km, Km3)
 
@@ -115,7 +114,7 @@ def abs_loss(param_vec, current_S, Cin, next_N, C, C_0):
 grad_func = grad(squared_loss)
 
 
-f = open('/Users/Neythen/masters_project/parameter_estimation/parameter_files/double_auxotroph.yaml')
+f = open('/Users/Neythen/Desktop/masters_project/parameter_estimation/parameter_files/double_auxotroph.yaml')
 param_dict = yaml.load(f)
 f.close()
 
@@ -157,8 +156,8 @@ np.save('unstable.npy', xSol)
 np.save('unstable_Cins.npy', Cins)
 '''
 
-xSol = np.load('/Users/Neythen/masters_project/parameter_estimation/system_trajectories/double_aux.npy')
-Cins = np.load('/Users/Neythen/masters_project/parameter_estimation/system_trajectories/double_aux_Cins.npy')
+xSol = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/double_aux.npy')
+Cins = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/double_aux_Cins.npy')
 
 
 fullSol = xSol
