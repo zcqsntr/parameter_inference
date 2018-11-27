@@ -19,6 +19,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import math
 import matplotlib.animation as animation
 
+import copy
 
 class Particle():
     '''
@@ -26,14 +27,13 @@ class Particle():
     '''
     def __init__(self, position, loss, velocity_scaling):
 
-        self.position = position
+        self.position = copy.deepcopy(position)
+        #self.velocity = np.array([np.random.random() * 5000, np.random.random()*0.005])
         self.velocity = np.zeros(position.shape)
-        self.stuck = False
 
-        self.personal_best_position = position
+        self.personal_best_position = copy.deepcopy(position)
         self.personal_best_value = loss
         self.velocity_scaling = velocity_scaling
-
 
     def update_velocity(self, global_best_position, cs):
         '''
@@ -73,26 +73,28 @@ class Particle():
 
         '''
         if current_loss < self.personal_best_value:
-            self.personal_best_value = current_loss
-            self.personal_best_position = self.position.copy()
+            self.personal_best_value = copy.deepcopy(current_loss)
+            self.personal_best_position = copy.deepcopy(self.position)
 
         return current_loss, self.position
 
-    def gradient_descent(self, loss_func, grad_wrapper, Cin, sol, next_N):
+    def gradient_descent(self, loss_function, grad_wrapper, domain, Cin, sol, next_N):
         '''
         does the gradient descent step
         '''
-        domain = np.array([[460000, 500000],  [0, 1.]])
+
+        print(self.position)
         position = adam(grad_wrapper, self.position, num_iters = 10)
         if ((domain[:,0]  < position).all() and (position < domain[:,1]).all()):
-            self.position += self.velocity
+            self.position = copy.deepcopy(position)
         else:
             self.position = np.random.uniform(domain[:,0], domain[:,1])
-        loss = loss_func(position, sol, Cin, next_N)
+
+        loss = loss_function(self.position, sol, Cin, next_N)
 
         if loss < self.personal_best_value:
             self.personal_best_value = loss
-            self.personal_best_position = position.copy()
+            self.personal_best_position = copy.deepcopy(position)
 
         return loss, position
 
@@ -100,9 +102,13 @@ class Particle():
         '''
         does one full hybrid step for a particle. Updates velocity then moves by PSO and GD
         '''
+
+
         self.update_velocity(global_best_position, cs)
         loss, position = self.move_and_update(loss_function, domain, Cin, sol, actual_N)
-        #loss, position = self.gradient_descent(loss_function, grad_wrapper, Cin, sol, next_N)
+
+        #loss, position = self.gradient_descent(loss_function, grad_wrapper, domain, Cin, sol, actual_N)
+
         return loss, position
 
 class Swarm():
@@ -117,7 +123,7 @@ class Swarm():
         self.particles = []
         self.c1 = c1
         self.c2 = c2
-        self.loss_function = self.squared_loss
+        self.loss_function = self.MAP_loss
         self.grad_func = grad(self.loss_function)
         self.domain = domain
         self.Cins = Cins
@@ -133,23 +139,36 @@ class Swarm():
         '''
         for the autograd optimisers
         '''
-        return self.grad_func(param_vec, self.sol, self.Cin, self.next_N)
+
+        actual_N = self.fullSol[0:50,0]
+
+        return self.grad_func(param_vec, self.fullSol[0,:], self.Cins, actual_N)
 
     def initialise_particles(self, domain, n_particles, n_groups, velocity_scaling):
-        ''' sample postions within domain and puts particles there'''
+        '''
+        sample postions within domain and puts particles there
+        '''
 
-        # sample domain
+        # for online
+        '''
         particles = []
-        num_species = 2
+
         self.Cin = self.Cins[0]
         self.sol = self.fullSol[0,:]
         N = self.sol[0]
         sol1 = self.fullSol[1,:]
 
         self.next_N = sol1[0]
+        '''
+
+        particles = []
+        actual_N = self.fullSol[0:50,0]
+
+        self.sol = self.fullSol
 
         # for co culture
         '''
+        num_species = 2
         Cin = self.Cins[0,:]
         self.sol = self.fullSol[0,:]
         N = self.sol[:2]
@@ -168,21 +187,20 @@ class Swarm():
             for _ in range(n_particles):
                 # initialise particle
                 position = np.random.uniform(domain[:,0], domain[:,1])
-                loss = self.loss_function(position, self.sol, self.Cin, self.next_N)
+                loss = self.loss_function(position, self.fullSol[0,:], self.Cins[0:50], actual_N)
                 particle = Particle(position, loss, velocity_scaling)
                 group.append(particle)
 
-                # update gloabl loss
-                loss = self.loss_function(particle.position, self.sol, self.Cin, self.next_N)
-
                 #update swarm values based on new particles position
-                try:
+
+                if self.global_best_values[i] is not None:
                     if loss < self.global_best_values[i]:
-                        self.global_best_values[i] = loss
-                        self.global_best_positions[i] = position.copy()
-                except: # if None
-                    self.global_best_values[i] = loss
-                    self.global_best_positions[i] = position.copy()
+                        self.global_best_values[i] = copy.deepcopy(loss)
+                        self.global_best_positions[i] = copy.deepcopy(position)
+                else:
+                    self.global_best_values[i] = copy.deepcopy(loss)
+                    self.global_best_positions[i] = copy.deepcopy(position)
+
             particles.append(group)
 
         self.particles = particles
@@ -192,44 +210,53 @@ class Swarm():
         resets particles position when particle is at a noisy (local) minima
         '''
         particle.position = np.random.uniform(domain[:,0], domain[:,1])
-        particle.personal_best_position = particle.position.copy()
-        self.global_best_positions[i] = particle.position.copy() # helps group leave local minima
+        particle.personal_best_position = copy.deepcopy(particle.position)
+        self.global_best_positions[i] = copy.deepcopy(particle.position) # helps group leave local minima
         current_loss = self.loss_function(particle.position, self.sol, self.Cin, self.next_N)
-        self.global_best_values[i] = current_loss
-        particle.personal_best_value = current_loss
+        self.global_best_values[i] = copy.deepcopy(current_loss)
+        particle.personal_best_value = copy.deepcopy(current_loss)
 
-    def MAP_loss(self, param_vec, current_S, Cin, next_N, debug = False):
+    def MAP_loss(self, param_vec, current_S, Cin, N, debug = False):
         '''
         loss functions using liklihoods and priors
         '''
-        num_species = 2
-        C = current_S[num_species: 2*num_species]
-        C_0 = current_S[-1]
 
-        predicted_N = self.predict(param_vec, current_S, Cin)
+        time_points = np.array([t for t in range(50)])
 
-        priors = self.gaussian(param_vec, prior_centres, prior_sigmas) # centre on true params for now
+        predicted_N = self.predict_time_series(param_vec, current_S, Cin, time_points)
 
-        likelihoods = self.gaussian(next_N, predicted_N, likelihood_sigmas)
+        #priors = self.gaussian(param_vec, prior_centres, prior_sigmas) # centre on true params for now
+        likelihood_sigma = 3000.
+        likelihood = 0
+
+        likelihood = self.gaussian(N, predicted_N, likelihood_sigma)
 
         if debug:
             print('predicted_N', predicted_N)
-            print('next_N', next_N)
+            print('next_N', N)
             print('priors:',np.sum(np.log(priors)))
             print('likelihoods: ', np.sum(np.log(likelihoods)) )
 
-        return  -np.sum(np.log(likelihoods))  - 0*1/weight*np.sum(np.log(priors))
+        return  -np.sum(np.log(likelihood))  #- 0*1/weight*np.sum(np.log(priors))
 
-    def squared_loss(self, params, current_S, Cin, actual_N):
+    def gaussian(self, xs, means, sigmas):
+        '''
+        returns the probability density at a point according to a gaussian distribution
+        '''
+
+        return 1/np.sqrt(2*np.pi*sigmas**2) * np.sum(np.exp(-1/(2* sigmas**2)*(xs - means)**2))
+
+    def squared_loss(self, params, current_S, Cin, actual_N): # verified working on timeseries
         '''
         squared loss
         '''
         num_species = 2
         C = current_S[num_species: 2*num_species]
         C_0 = current_S[-1]
-        time_points = np.array([t for t in range(2)])#PUT THIS BACK FOR ONLINE
+        time_points = np.array([t for t in range(50)])#PUT THIS BACK FOR ONLINE
 
-        predicted_N = self.predict(params, current_S, Cin, time_points)
+        predicted_N = self.predict_time_series(params, current_S, Cin, time_points)
+
         return np.sum(np.array(actual_N - predicted_N)**2)
 
     def sdot_co(self, S, t, param_vec, Cin): # X is population vector, t is time, R is intrinsic growth rate vector, C is the rate limiting nutrient vector, A is interaction matrix
@@ -283,7 +310,7 @@ class Swarm():
 
         return tuple(dsol)
 
-    def sdot(self,S, t,params, Cin): # X is population vector, t is time, R is intrinsic growth rate vector, C is the rate limiting nutrient vector, A is interaction matrix
+    def sdot(self,S, t, params, Cin): # X is population vector, t is time, R is intrinsic growth rate vector, C is the rate limiting nutrient vector, A is interaction matrix
         '''
         Calculates and returns derivatives for the numerical solver odeint
 
@@ -297,9 +324,17 @@ class Swarm():
         Returns:
             dsol: array of the derivatives for all state variables
         '''
+
         # extract variables
-        t = int(t)
+
+        # autograd gives t as an array_box, need to convert to int
+        if str(type(t)) == '<class \'autograd.numpy.numpy_boxes.ArrayBox\'>': # sort this out
+            t = t._value
+            t = int(t)
+        else:
+            t = int(t)
         C0in = self.Cins[t]
+        #C0in = Cin
         N = S[0]
         C0 = S[1]
         # extract parameters
@@ -315,8 +350,8 @@ class Swarm():
         # consstruct derivative vector for odeint
         dC0 = np.array([dC0])
         dsol = np.append(dN, dC0)
+        
         return tuple(dsol)
-
 
     def monod_co(self, C, C0, Rmax, Km, Km0):
         '''
@@ -373,18 +408,22 @@ class Swarm():
 
         return pred_N
 
-    def predict(self, params, S, Cin, time_points):
+    def predict_online(self, params, S, Cin, time_points):
 
-        sol = odeint(self.sdot, S, time_points, tuple((params, Cin)))[1:] #PUT THIS BACK FOR ONLINE
+        #sol = odeint(self.sdot, S, time_points, tuple((params, Cin)))[1:] #PUT THIS BACK FOR ONLINE
 
-        pred_N = sol[-1, 0] #PUT THIS BACK FOR ONLINE
+        #pred_N = sol[-1, 0] #PUT THIS BACK FOR ONLINE
+
+
         return pred_N
 
-    def gaussian(self, xs, means, sigmas):
-        '''
-        returns the probability density at a point according to a gaussian distribution
-        '''
-        return 1/np.sqrt(2*np.pi*sigmas**2) * np.exp(-1/(2* sigmas**2)*(xs - means)**2)
+    def predict_time_series(self, params, S, Cins, time_points): # verified working on timeseries
+
+        sol = odeint(self.sdot, S, time_points, tuple((params, Cins)))[:] #PUT THIS BACK FOR ONLINE
+
+        pred_N = sol[:, 0] #PUT THIS BACK FOR ONLINE
+
+        return pred_N
 
     def step(self, sol, Cin, actual_N):
         '''
@@ -399,8 +438,9 @@ class Swarm():
             y = []
 
             for particle in group:
-                particle_loss = self.loss_function(particle.position, sol, Cin, actual_N)
                 '''
+                particle_loss = self.loss_function(particle.position, sol, Cin, actual_N)
+
                 # if stuck in a noisey minima
                 if np.linalg.norm((particle.position - self.global_best_positions[i])*np.array([10, 0.000001])) < 0.01 and abs(particle_loss - self.global_best_values[i]) > 10:
                     self.reset_particle(particle, self.domain, i)
@@ -411,8 +451,8 @@ class Swarm():
 
                 # if particle has found a new best place
                 if loss < self.global_best_values[i]:
-                    self.global_best_values[i] = loss
-                    self.global_best_positions[i] = position.copy()
+                    self.global_best_values[i] = copy.deepcopy(loss)
+                    self.global_best_positions[i] = copy.deepcopy(position)
 
                 x.append(particle.position[0])
                 y.append(particle.position[1])
@@ -429,6 +469,10 @@ class Swarm():
 
         im = plt.plot(*plotting_data)
         self.ims.append(im)
+        print()
+        print(self.global_best_values)
+        for i in range(len(self.global_best_positions)):
+            print(self.global_best_positions[i])
 
     def find_minimum_online(self,n_steps):
         '''
@@ -466,7 +510,7 @@ class Swarm():
         runs the hybrid PSO/gradient descent alogirhtm and returns the minima found
         '''
         num_species = 2
-        actual_N = self.fullSol[0:50,1]
+        actual_N = self.fullSol[0:50,0]
 
         for i in range(n_steps):
             print(i)

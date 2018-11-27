@@ -123,14 +123,16 @@ np.save('smaller_target_Cins.npy', Cins)
 xSol = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/monoculture.npy')
 Cins = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/monoculture_Cins.npy')
 
-domain = np.array([[460000, 500000],  [0, 1.]])
+small_domain = np.array([[470000, 490000],  [0.4, 0.8]])
+domain = small_domain
+
 velocity_scaling = np.array([10000,10000]) * 0.00001
 n_particles = 50
 n_groups = 5
 cs = (2, 2)
 swarm = Swarm(domain, n_particles, n_groups, cs, Cins, xSol, velocity_scaling, ode_params)
 
-print(swarm.find_minimum_online(100))
+swarm.find_minimum_online(10)
 
 
 print(swarm.global_best_positions)
@@ -152,5 +154,6 @@ plt.figure()
 for i in range(5):
     plt.plot(np.linspace(0,T_MAX,len(fullSol2[:,0])), fullSol2[:,i], label = labels[i])
 plt.legend()
+
 
 '''

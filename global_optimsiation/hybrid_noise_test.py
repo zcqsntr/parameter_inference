@@ -283,7 +283,6 @@ if __name__ == '__main__':
     '''
     X,Y = np.meshgrid(x,y)
 
-
     function = six_hump_camel
     Z = function(X,Y)
 

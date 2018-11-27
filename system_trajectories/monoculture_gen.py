@@ -6,7 +6,9 @@ import os
 import yaml
 import matplotlib
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(os.path.join(ROOT_DIR, 'CBcurl'))
+sys.path.append(os.path.join(ROOT_DIR, 'app', 'CBcurl_master', 'CBcurl'))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from utilities import *
 
 matplotlib.rcParams.update({'font.size': 22})

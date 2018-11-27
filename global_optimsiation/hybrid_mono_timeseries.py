@@ -63,7 +63,6 @@ prior_centres = np.array([490000,0.7, 0.0006])
 
 likelihood_scaling = np.array([1e12,   0.1, 0.0001])
 
-
 def MAP_loss(param_vec, current_S, Cin, next_N, debug = False):
 
     predicted_N = predict(param_vec, current_S, Cin)
@@ -90,7 +89,6 @@ initial_C0 = param_dict['Q_params'][7]
 
 labels = ['N1', 'C0']
 
-
 grad_func = grad(squared_loss)
 
 def grad_wrapper(param_vec, i):
@@ -116,34 +114,101 @@ np.save('smaller_target_Cins.npy', Cins)
 
 xSol = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/monoculture.npy')
 Cins = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/monoculture_Cins.npy')
-print(xSol.shape)
-domain = np.array([[460000, 500000],  [0, 1.]])
+
+
+small_domain = np.array([[470000, 490000],  [0.4, 0.8]])
+domain = small_domain
+x = np.linspace(domain[0][0], domain[0][1],100)
+y = np.linspace(domain[1][0], domain[1][1],100)
+X,Y = np.meshgrid(x,y)
+Z = np.zeros(X.shape)
+
+
 velocity_scaling = np.array([10000,10000]) * 0.00001
 n_particles = 50
 n_groups = 5
 cs = (2, 2)
-swarm = Swarm(domain, n_particles, n_groups, cs, Cins, xSol, velocity_scaling, ode_params)
+params = np.array(ode_params[1:3])
+print(params)
 
-swarm.find_minimum_online(100)
+time_points = np.array([t for t in range(50)])
+
+swarm = Swarm(domain, n_particles, n_groups, cs, Cins, xSol, velocity_scaling, ode_params)
+predicted_N = swarm.predict_time_series(params, xSol[0,:], Cins, time_points)
+actual_N = xSol[0:50, 0]
+
+
+
+positions = [np.array([4.80244978e+05, 5.99998831e-01]),np.array([4.86753654e+05, 5.04686881e-01]),np.array([4.80144198e+05, 6.00000018e-01]),np.array([4.74899514e+05, 5.04020619e-01]),np.array([4.80875488e+05, 5.03510240e-01])]
+
+print(swarm.MAP_loss(params, xSol[0,:],Cins, actual_N))
+
+#plt.plot(time_points, predicted_N)
+plt.figure()
+
+#plt.plot(time_points, xSol[:,0])
+#plt.show()
+'''
+for i in range(Z.shape[0]):
+    print(i)
+    for j in range(Z.shape[1]):
+        Z[i,j] = swarm.MAP_loss([X[i,j], Y[i,j]], xSol[0, :], Cins[0],xSol[0:50,0])
+'''
+#np.save('Z.npy', Z)
+Z = np.load('Z_small_domain.npy')
+ind = Z.argmin()
+ind = np.unravel_index(ind, (100,100))
+min = np.min(Z)
+'''
+print(Z)
+print(min)
+print(X[ind], Y[ind])
+'''
+fig = plt.figure(figsize = (12,8))
+im = plt.contour(X,Y,Z,40, vmin=abs(Z).min(), vmax=abs(Z).max())
+
+cb = fig.colorbar(im)
+
+
+swarm.find_minimum_time_series(20)
+
 
 print(swarm.global_best_positions)
 print(swarm.global_best_values)
 
+positions = swarm.global_best_positions
+print()
+for position in positions:
+    print(swarm.MAP_loss(position, xSol[0,:],Cins, actual_N))
+print()
+
+
+
 fig = plt.figure(figsize = (12,8))
+plt.xlabel('gamma')
+plt.ylabel('u_max')
 plt.plot([480000], [0.6])
 ani = animation.ArtistAnimation(fig, swarm.ims, interval=50, blit=True,repeat_delay=1000)
-ani.save('hybrid_mono.mp4', bitrate = 1000)
+ani.save('hybrid_mono_TS.mp4', bitrate = 1000)
+
+
+'''
+results without SGD:
+[array([4.82930669e+05, 5.99996282e-01]), array([4.78926146e+05, 5.99999065e-01]), array([4.83405757e+05, 5.99997100e-01]), array([4.81275060e+05, 5.99997605e-01]), array([4.80229386e+05, 5.99999829e-01])]
+[5.154534762088269, 5.034893781184728, 5.194079652076269, 5.04349157265854, 5.014287648299704]
+
+'''
+
+# resimulate data with the best position found in terms of loss
+best_index = np.argmin(swarm.global_best_values)
+best_params = swarm.global_best_positions[best_index]
+
+predicted_N = swarm.predict_time_series(best_params, xSol[0,:], Cins, time_points)
+
+fig = plt.figure()
+plt.plot(time_points, actual_N, label = 'actual_N')
+plt.plot(time_points, predicted_N, label = 'predicted_N', ls = '-')
+plt.legend()
+plt.xlabel('time (hrs)')
+plt.ylabel('population (10^6 cells/L)')
 plt.show()
-'''
-# plot all system variables
-plt.figure()
-for i in range(5):
-    plt.plot(np.linspace(0,T_MAX,len(fullSol[:,0])), fullSol[:,i], label = labels[i])
-plt.legend()
-
-plt.figure()
-for i in range(5):
-    plt.plot(np.linspace(0,T_MAX,len(fullSol2[:,0])), fullSol2[:,i], label = labels[i])
-plt.legend()
-
-'''
