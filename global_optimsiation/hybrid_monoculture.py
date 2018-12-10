@@ -21,7 +21,7 @@ import math
 import matplotlib.animation as animation
 
 from hybrid_noise_test import six_hump_camel, ackleys_function
-from hybrid_PS_SGD import *
+from hybrid_PS_SGD_v2 import *
 
 
 '''
@@ -123,6 +123,7 @@ np.save('smaller_target_Cins.npy', Cins)
 xSol = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/monoculture.npy')
 Cins = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/system_trajectories/monoculture_Cins.npy')
 
+
 small_domain = np.array([[470000, 490000],  [0.4, 0.8]])
 domain = small_domain
 
@@ -130,9 +131,14 @@ velocity_scaling = np.array([10000,10000]) * 0.00001
 n_particles = 50
 n_groups = 5
 cs = (2, 2)
-swarm = Swarm(domain, n_particles, n_groups, cs, Cins, xSol, velocity_scaling, ode_params)
+swarm = Swarm(domain, n_particles, n_groups, cs, velocity_scaling, ode_params)
 
-swarm.find_minimum_online(10)
+initial_S = xSol[0,:]
+Cins = np.array([Cins[1]])
+actual_N = np.array([xSol[1,0]])
+
+
+swarm.find_minimum(initial_S, Cins, actual_N, 20, 'param')
 
 
 print(swarm.global_best_positions)

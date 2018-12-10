@@ -68,10 +68,10 @@ def sdot(S, t, C0in, params): # X is population vector, t is time, R is intrinsi
     # extract variables
     N = S[0]
     C0 = S[1]
+    print(t)
 
     # extract parameters
     q, y, Rmax, Km = params
-
 
     R = monod(C0, Rmax, Km)
 

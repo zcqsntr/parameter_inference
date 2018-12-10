@@ -3,6 +3,7 @@ import os
 import yaml
 import matplotlib.pyplot as plt
 
+
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.join(ROOT_DIR, 'app', 'CBcurl_master', 'CBcurl'))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -117,6 +118,7 @@ Cins = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/syst
 
 
 small_domain = np.array([[470000, 490000],  [0.4, 0.8]])
+large_domain = np.array([[100000, 1000000],  [0., 1.]])
 domain = small_domain
 x = np.linspace(domain[0][0], domain[0][1],100)
 y = np.linspace(domain[1][0], domain[1][1],100)
@@ -125,21 +127,18 @@ Z = np.zeros(X.shape)
 
 
 velocity_scaling = np.array([10000,10000]) * 0.00001
-n_particles = 50
-n_groups = 5
+n_particles = 1
+n_groups = 1
 cs = (2, 2)
 params = np.array(ode_params[1:3])
 print(params)
 
-time_points = np.array([t for t in range(50)])
+time_points = np.array([t for t in range(100)])
 
 swarm = Swarm(domain, n_particles, n_groups, cs, Cins, xSol, velocity_scaling, ode_params)
 predicted_N = swarm.predict_time_series(params, xSol[0,:], Cins, time_points)
 actual_N = xSol[0:50, 0]
 
-
-
-positions = [np.array([4.80244978e+05, 5.99998831e-01]),np.array([4.86753654e+05, 5.04686881e-01]),np.array([4.80144198e+05, 6.00000018e-01]),np.array([4.74899514e+05, 5.04020619e-01]),np.array([4.80875488e+05, 5.03510240e-01])]
 
 print(swarm.MAP_loss(params, xSol[0,:],Cins, actual_N))
 
@@ -148,14 +147,26 @@ plt.figure()
 
 #plt.plot(time_points, xSol[:,0])
 #plt.show()
+
+n_points = [i for i in range(10)]
+n_points += [i for i in range(10, 200, 10)]
+
+
+
 '''
-for i in range(Z.shape[0]):
-    print(i)
-    for j in range(Z.shape[1]):
-        Z[i,j] = swarm.MAP_loss([X[i,j], Y[i,j]], xSol[0, :], Cins[0],xSol[0:50,0])
+for n_point in n_points:
+    print('n_points: ', n_point)
+    for i in range(Z.shape[0]):
+        print(i)
+        for j in range(Z.shape[1]):
+            Z[i,j] = swarm.MAP_loss([X[i,j], Y[i,j]], xSol[50, :], Cins[50],xSol[50:n_point+50,0])
+    np.save('Z_diff_n_points_from_stationary/Z_' + str(n_point) + '.npy', Z)
+
+sys.exit()
 '''
-#np.save('Z.npy', Z)
+
 Z = np.load('Z_small_domain.npy')
+#Z = np.load('/Users/Neythen/Desktop/masters_project/parameter_estimation/global_optimsiation/Z_diff_n_points/Z_2.npy')
 ind = Z.argmin()
 ind = np.unravel_index(ind, (100,100))
 min = np.min(Z)
@@ -170,7 +181,7 @@ im = plt.contour(X,Y,Z,40, vmin=abs(Z).min(), vmax=abs(Z).max())
 cb = fig.colorbar(im)
 
 
-swarm.find_minimum_time_series(20)
+swarm.find_minimum_time_series(50)
 
 
 print(swarm.global_best_positions)
@@ -203,12 +214,25 @@ results without SGD:
 best_index = np.argmin(swarm.global_best_values)
 best_params = swarm.global_best_positions[best_index]
 
-predicted_N = swarm.predict_time_series(best_params, xSol[0,:], Cins, time_points)
+predicted_N = swarm.predict_time_series(best_params, xSol[0,:] , Cins, time_points)
 
 fig = plt.figure()
 plt.plot(time_points, actual_N, label = 'actual_N')
-plt.plot(time_points, predicted_N, label = 'predicted_N', ls = '-')
+plt.plot(time_points, predicted_N, label = 'predicted_N', ls = '-.')
 plt.legend()
 plt.xlabel('time (hrs)')
 plt.ylabel('population (10^6 cells/L)')
+
+
+time_points = [t for t in range(7000)]
+
+predicted_N = swarm.predict_time_series(best_params, xSol[0,:], Cins, time_points)
+actual_N = xSol[:7000, 0]
+fig = plt.figure()
+plt.plot(time_points, actual_N, label = 'actual_N')
+plt.plot(time_points, predicted_N, label = 'predicted_N', ls = '-.')
+plt.legend()
+plt.xlabel('time (hrs)')
+plt.ylabel('population (10^6 cells/L)')
+
 plt.show()
