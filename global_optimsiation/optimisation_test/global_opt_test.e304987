@@ -1,0 +1,5 @@
+/var/opt/sge/node-h00a-025/job_scripts/304987: line 9: module: command not found
+Traceback (most recent call last):
+  File "/home/zcqsntr/global_optimsiation/global_optimisation_test.py", line 3, in <module>
+    import matplotlib.pyplot as plt
+ImportError: No module named matplotlib.pyplot

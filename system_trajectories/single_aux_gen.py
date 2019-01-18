@@ -78,7 +78,7 @@ xSol = np.array([X])
 Cin = np.array([1, 0.1]).reshape(1, 2)
 
 
-Cins = Cin
+Cins = np.array()
 time_diff = 3
 
 for t in range(T_MAX):

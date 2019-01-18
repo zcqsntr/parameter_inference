@@ -6,7 +6,7 @@ import os
 import yaml
 import matplotlib
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(os.path.join(ROOT_DIR, 'CBcurl'))
+sys.path.append('/Users/Neythen/Desktop/masters_project/app/CBcurl_master/CBcurl')
 from utilities import *
 
 matplotlib.rcParams.update({'font.size': 22})
@@ -21,18 +21,18 @@ param_dict = convert_to_numpy(param_dict)
 
 # extract parameters
 NUM_EPISODES, test_freq, explore_denom, step_denom, T_MAX,MIN_STEP_SIZE, \
-    MAX_STEP_SIZE, MIN_EXPLORE_RATE, cutoff, _, _  = param_dict['train_params']
+    MAX_STEP_SIZE, MIN_EXPLORE_RATE, MAX_EXPLORE_RATE, cutoff, hidden_layers, buffer_size  = param_dict['train_params']
 NOISE, error = param_dict['noise_params']
-num_species, num_controlled_species, num_N_states, num_Cin_states = \
-    param_dict['Q_params'][1], param_dict['Q_params'][2],  param_dict['Q_params'][3],param_dict['Q_params'][5]
+num_species, num_controlled_species, num_N_states, N_bounds, num_Cin_states, Cin_bounds = \
+    param_dict['Q_params'][0], param_dict['Q_params'][1],  param_dict['Q_params'][2], param_dict['Q_params'][7], param_dict['Q_params'][4], param_dict['Q_params'][5]
 ode_params = param_dict['ode_params']
-Q_params = param_dict['Q_params'][0:8]
-initial_X = param_dict['Q_params'][8]
-initial_C = param_dict['Q_params'][9]
-initial_C0 = param_dict['Q_params'][10]
+Q_params = param_dict['Q_params'][0:7]
+initial_X = param_dict['Q_params'][7]
+initial_C = param_dict['Q_params'][8]
+initial_C0 = param_dict['Q_params'][9]
 
 T_MAX = 10000
-A, num_species, num_controlled_species, num_N_states, N_bounds, num_Cin_states, Cin_bounds, gamma = Q_params
+num_species, num_controlled_species, num_N_states, N_bounds, num_Cin_states, Cin_bounds, gamma = Q_params
 
 tSol = np.linspace(0, T_MAX, T_MAX+1)
 
@@ -72,7 +72,7 @@ Cin = np.array([0.1,0.1]).reshape(1, 2)
 
 
 
-Cins = Cin
+Cins = np.array()
 time_diff = 3
 
 for t in range(T_MAX):
@@ -84,9 +84,8 @@ for t in range(T_MAX):
     if X[1] < 2:
         Cin[0][1] = np.random.randint(1,4, size = (1,1))
 
-
     # get solution
-    sol = odeint(sdot, X, [t + x *1 for x in range(time_diff)], args=(Cin, A,ode_params, num_species))[1:]
+    sol = odeint(sdot, X, [t + x *1 for x in range(time_diff)], args=(Cin, ode_params, num_species))[1:]
 
     X = sol[-1,:]
     xSol = np.append(xSol,sol, axis = 0)
@@ -102,8 +101,8 @@ for t in range(T_MAX):
 print(xSol.shape)
 print(Cins.shape)
 
-np.save('double_aux.npy', xSol)
-np.save('double_aux_Cins.npy', Cins)
+np.save('double_aux_for_KF.npy', xSol)
+np.save('double_aux_Cins_for_KF.npy', Cins)
 
 # plot
 plt.figure(figsize = (16.0,12.0))

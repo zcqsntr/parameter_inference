@@ -65,7 +65,7 @@ def run_model(params):
     S = np.array([10., 10., 0.1, 0.1, 1.])
     sol = odeint(sdot, S, time_points, tuple((params, Cin)))[1:]
 
-    pred_N = sol[-1, 0:2]\
+    pred_N = sol[-1, 0:2]
 
     return pred_N[0]
 
