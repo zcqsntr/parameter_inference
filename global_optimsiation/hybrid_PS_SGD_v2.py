@@ -8,6 +8,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'app', 'CBcurl_master', 'CBcurl'))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from matplotlib import cm
+from utilities import *
 
 '''
 import autograd.numpy as np
@@ -316,7 +317,7 @@ class Swarm():
 
     def predict(self, params, S, Cin, time_points):
 
-        sol = odeint(self.sdot_co, S, time_points, tuple((params, Cin)))[1:] #PUT THIS BACK FOR ONLINE
+        sol = odeint(sdot, S, time_points, tuple((Cin, params, 2)))[1:] #PUT THIS BACK FOR ONLINE
         return sol
     '''
     def predict_time_series(self, params, S, Cins, time_points): # verified working on timeseries
@@ -392,9 +393,9 @@ class Swarm():
                     self.global_best_values[i] = copy.deepcopy(loss)
                     self.global_best_positions[i] = copy.deepcopy(particle.position)
 
-        print(self.global_best_positions)
+
         for i in range(n_steps):
-            print(i, self.global_best_positions)
+            
             self.step(initial_S, constant, target, mode, i)
 
         return self.global_best_values, self.global_best_positions, self.ims
@@ -439,7 +440,8 @@ class Swarm():
 
         Cin = Cin[t]
 
-        A = np.reshape(param_vec[0:4], (2,2))
+        print(" param vec: ", param_vec)
+        A = np.reshape(param_vec[-4:], (2,2))
         y = param_vec[4:6]
         y3 = param_vec[6:8]
 
