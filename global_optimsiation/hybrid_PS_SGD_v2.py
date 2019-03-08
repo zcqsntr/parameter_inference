@@ -212,7 +212,7 @@ class Swarm():
 
         #priors = self.gaussian(param_vec, prior_centres, prior_sigmas) # centre on true params for now
         likelihood_sigma = 3000.
-        likelihood = 0.
+
 
         likelihood = self.gaussian(target, predicted_N, likelihood_sigma)
         if debug:
@@ -395,7 +395,7 @@ class Swarm():
 
 
         for i in range(n_steps):
-            
+
             self.step(initial_S, constant, target, mode, i)
 
         return self.global_best_values, self.global_best_positions, self.ims
