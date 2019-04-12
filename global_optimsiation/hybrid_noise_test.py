@@ -21,7 +21,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import math
 import matplotlib.animation as animation
 
-from hybrid_PS_SGD_v2 import *
+from particle_swarm_optimiser import *
 
 
 def six_hump_camel(X,Y):

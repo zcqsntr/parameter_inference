@@ -86,7 +86,6 @@ class Particle():
         else:
             return x
 
-
     def update_velocity(self, global_best_position, t):
         '''
         updates every particles velocity based on the cognitive and social components
@@ -143,18 +142,20 @@ class Swarm():
     '''
     Swarm for PSO. Manages a swarm of particles
     '''
-    def __init__(self, domain, n_particles, n_groups, cs, ode_params = None, loss_function = None):
+    def __init__(self, system, domain, n_particles, n_groups, cs, ode_params = None, loss_function = None):
         self.ode_params = ode_params
         self.global_best_positions = [None] * n_groups
         self.global_best_values = [None] * n_groups
+        self.settle_times = [0] * n_groups
         self.particles = []
         if loss_function is None:
-            self.loss_function = self.MAP_loss
+            self.loss_function = self.squared_loss
         else:
             self.loss_function = loss_function
         #self.grad_func = grad(self.loss_function)
         self.domain = domain
         self.ims = [] # for plotting
+        self.system = system
 
         self.initialise_particles(domain, n_particles, n_groups, cs)
 
@@ -190,14 +191,14 @@ class Swarm():
 
         self.particles = particles
 
-    def reset_particle(self, particle, domain, i): #maybe refactor to be a method of Particle
+    def reset_particle(self, particle, current_S, constant, target, mode, i): #maybe refactor to be a method of Particle
         '''
         resets particles position when particle is at a noisy (local) minima
         '''
-        particle.position = np.random.uniform(domain[:,0], domain[:,1])
+        particle.position = np.random.uniform(self.domain[:,0], self.domain[:,1])
         particle.personal_best_position = copy.deepcopy(particle.position)
         self.global_best_positions[i] = copy.deepcopy(particle.position) # helps group leave local minima
-        current_loss = self.loss_function(particle.position, self.sol, self.Cin, self.next_N)
+        current_loss = particle.evaluate(self.loss_function, current_S, constant, target, mode)
         self.global_best_values[i] = copy.deepcopy(current_loss)
         particle.personal_best_value = copy.deepcopy(current_loss)
 
@@ -206,9 +207,9 @@ class Swarm():
         loss functions using liklihoods and priors
         '''
 
-        time_points = np.array([t for t in range(len(target) + 1)]) # +1 for the initial point
+        time_points = np.array([t for t in range(len(target))]) # +1 for the initial point
 
-        predicted_N = self.predict(param_vec, current_S, Cin, time_points)[:,:2]
+        predicted_N = self.system.predict(param_vec, current_S, Cin, time_points)[:,:2]
 
         #priors = self.gaussian(param_vec, prior_centres, prior_sigmas) # centre on true params for now
         likelihood_sigma = 3000.
@@ -228,97 +229,26 @@ class Swarm():
         returns the probability density at a point according to a gaussian distribution
         '''
 
-        return 1/np.sqrt(2*np.pi*sigmas**2) * np.sum(np.exp(-1/(2* sigmas**2)*(xs - means)**2))
 
-    def squared_loss(self, param_vec, current_S, Cin, target,  debug = False): # verified working on timeseries
+        try:
+            return 1/np.sqrt(2*np.pi*sigmas**2) * np.sum(np.exp(-1/(2* sigmas**2)*(xs - means)**2))
+        except Exception as e:
+            print(xs.shape, means.shape, sigmas)
+            raise e
+
+    def squared_loss(self, param_vec, current_S, Cins, target,  debug = False): # verified working on timeseries
         '''
         squared loss
         '''
-        if self.mode == 'MPC':
-            param_vec = constant
-            Cin = variable
-        else:
-            Cin = constant
-            param_vec = variable
 
-        num_species = 2
-        C = current_S[num_species: 2*num_species]
-        C_0 = current_S[-1]
-        time_points = np.array([t for t in range(50)])#PUT THIS BACK FOR ONLINE
+        time_points = np.array([t for t in range(len(target))])#PUT THIS BACK FOR ONLINE
 
-        predicted_N = self.predict_time_series(param_vec, current_S, Cin, time_points)[:,0]
+        #predicted_N = self.system.predict(param_vec, current_S, Cins, time_points)[:,:2]
+        predicted_N = self.system.predict(param_vec, current_S, Cins, time_points)[:,0]
 
-        return np.sum(np.array(actual_N - predicted_N)**2)
+        return np.sum(np.array(target - predicted_N)**2)
 
-    def sdot(self, S, t, params, Cin): # X is population vector, t is time, R is intrinsic growth rate vector, C is the rate limiting nutrient vector, A is interaction matrix
-        '''
-        Calculates and returns derivatives for the numerical solver odeint
 
-        Parameters:
-            S: current state
-            t: current time
-            Cin: array of the concentrations of the auxotrophic nutrients and the
-                common carbon source
-            params: list parameters for all the exquations
-            num_species: the number of bacterial populations
-        Returns:
-            dsol: array of the derivatives for all state variables
-        '''
-
-        # extract variables
-
-        # autograd gives t as an array_box, need to convert to int
-        if str(type(t)) == '<class \'autograd.numpy.numpy_boxes.ArrayBox\'>': # sort this out
-            t = t._value
-            t = int(t)
-        else:
-            t = int(t)
-        t = min(Cin.shape[0] - 1, t) # to prevent solver from going past the max time
-
-        C0in = Cin[t]
-
-        #C0in = Cin
-        N = S[0]
-        C0 = S[1]
-        # extract parameters
-        q = self.ode_params[0]
-        y, Rmax = params[0:2]
-        Km =  self.ode_params[3]
-        R = self.monod(C0, Rmax, Km)
-
-        # calculate derivatives
-        dN = N * (R.astype(float) - q) # q term takes account of the dilution
-        dC0 = q*(C0in - C0) - 1/y*R*N
-
-        # consstruct derivative vector for odeint
-        dC0 = np.array([dC0])
-        dsol = np.append(dN, dC0)
-
-        return tuple(dsol)
-
-    def monod(self, C0, Rmax, Km0):
-        '''
-        Calculates the growth rate based on the monod equation
-
-        Parameters:
-            C: the concetrations of the auxotrophic nutrients for each bacterial
-                population
-            C0: concentration of the common carbon source
-            Rmax: array of the maximum growth rates for each bacteria
-            Km: array of the saturation constants for each auxotrophic nutrient
-            Km0: array of the saturation constant for the common carbon source for
-                each bacterial species
-        '''
-
-        # convert to numpy
-        growth_rate = Rmax * (C0/ (Km0 + C0))
-
-        return growth_rate
-
-    def predict(self, params, S, Cin, time_points):
-
-        sol = odeint(sdot, S, time_points, tuple((Cin, params, 2)))[1:] #PUT THIS BACK FOR ONLINE
-        return sol
     '''
     def predict_time_series(self, params, S, Cins, time_points): # verified working on timeseries
 
@@ -355,16 +285,21 @@ class Swarm():
                 if loss < self.global_best_values[i]:
                     self.global_best_values[i] = copy.deepcopy(loss)
                     self.global_best_positions[i] = copy.deepcopy(position)
+                    self.settle_times[i] = t
                 '''
-                x.append(particle.position[0])
-                y.append(particle.position[1])
+                x.append(particle.position[2])
+                y.append(particle.position[3])
                 '''
+
             '''
-            group_xs.append(x)
-            group_ys.append(y)
+            if t - self.settle_times[i] > 20 and np.argmin(self.global_best_values) != i:
+                for particle in group:
+                    self.reset_particle(particle, current_S, constant, target, mode, i)
             '''
 
-        '''
+            group_xs.append(x)
+            group_ys.append(y)
+
         # add current frame to plot
         plotting_data = []
         for i in range(len(group_xs)):
@@ -374,14 +309,15 @@ class Swarm():
 
         im = plt.plot(*plotting_data)
         self.ims.append(im)
-        '''
+
+
 
     def find_minimum(self, initial_S, constant, target, n_steps, mode):
 
         # iniitlise loss at initial positions
         for i,group in enumerate(self.particles):
             for particle in group:
-                particle.set_n_steps(500)
+                particle.set_n_steps(n_steps)
                 loss = particle.evaluate(self.loss_function, initial_S, constant, target, mode)
 
                 #update swarm values based on new particles position
@@ -389,6 +325,7 @@ class Swarm():
                     if loss < self.global_best_values[i]:
                         self.global_best_values[i] = copy.deepcopy(loss)
                         self.global_best_positions[i] = copy.deepcopy(particle.position)
+
                 except:
                     self.global_best_values[i] = copy.deepcopy(loss)
                     self.global_best_positions[i] = copy.deepcopy(particle.position)
@@ -396,88 +333,28 @@ class Swarm():
 
         for i in range(n_steps):
 
+            '''
+            if i %10 == 0:
+                print('step: ', i)
+                print(self.global_best_values)
+                print(self.global_best_positions)
+            '''
             self.step(initial_S, constant, target, mode, i)
 
         return self.global_best_values, self.global_best_positions, self.ims
 
-    def sdot_co(self, S, t, param_vec, Cin): # X is population vector, t is time, R is intrinsic growth rate vector, C is the rate limiting nutrient vector, A is interaction matrix
-        '''
-        Calculates and returns derivatives for the numerical solver odeint
 
-        Parameters:
-            S: current state
-            t: current time
-            Cin: array of the concentrations of the auxotrophic nutrients and the
-                common carbon source
-            params: list parameters for all the exquations
-            num_species: the number of bacterial populations
-        Returns:
-            dsol: array of the derivatives for all state variables
-        '''
-        # extract parmeters
-        '''
-        A = param_vec[5]
-        #A = param_vec[0]
-        y = param_vec[0]
-        y3 = param_vec[1]
+    '''
+    System classes hold the releveant functions and parameters for different systems, MPC class is
+    for when the optimiser is being used as an MPC
+    '''
 
-        Rmax = param_vec[2]
+class MPC_mono():
 
-        Km = self.ode_params[5]
-        Km3 = self.ode_params[6]
+    def __init__(self, ode_params):
+        self.ode_params = ode_params
 
-        Km = param_vec[10:12]
-        Km3 = param_vec[12:14]
-        '''
-
-        # autograd gives t as an array_box, need to convert to int
-        if str(type(t)) == '<class \'autograd.numpy.numpy_boxes.ArrayBox\'>': # sort this out
-            t = t._value
-            t = int(t)
-        else:
-            t = int(t)
-        t = min(Cin.shape[0] - 1, t) # to prevent solver from going past the max time
-
-        Cin = Cin[t]
-
-        print(" param vec: ", param_vec)
-        A = np.reshape(param_vec[-4:], (2,2))
-        y = param_vec[4:6]
-        y3 = param_vec[6:8]
-
-        Rmax = param_vec[8:10]
-
-        Km = self.ode_params[5]
-        Km3 = self.ode_params[6]
-
-        num_species = 2
-        # extract variables
-        N = np.array(S[:num_species])
-        C = np.array(S[num_species:2*num_species])
-        C0 = np.array(S[-1])
-
-        C0in, q = self.ode_params[:2]
-
-        R = self.monod_co(C, C0, Rmax, Km, Km3)
-
-        Cin = Cin[:num_species]
-        # calculate derivatives
-        dN = N * (R + np.matmul(A,N) - q) # q term takes account of the dilution
-        dC = q*(Cin - C) - (1/y)*R*N # sometimes dC.shape is (2,2)
-
-
-        dC0 = q*(C0in - C0) - sum(1/y3[i]*R[i]*N[i] for i in range(num_species))
-
-        # consstruct derivative vector for odeint
-        dC0 = np.array([dC0])
-        dsol = np.append(dN, dC)
-        dsol = np.append(dsol, dC0)
-
-
-
-        return tuple(dsol)
-
-    def monod_co(self, C, C0, Rmax, Km, Km0):
+    def monod(self, C0, Rmax, Km0):
         '''
         Calculates the growth rate based on the monod equation
 
@@ -492,25 +369,16 @@ class Swarm():
         '''
 
         # convert to numpy
-        C = np.array(C)
-        Rmax = np.array(Rmax)
-        Km = np.array(Km)
-        C0 = np.array(C0)
-        Km0 = np.array(Km0)
-
-        growth_rate = ((Rmax*C)/ (Km + C)) * (C0/ (Km0 + C0))
+        growth_rate = Rmax * (C0/ (Km0 + C0))
 
         return growth_rate
-    def predict_co(self, params, S, Cin):
-        '''
-        predicts the populations at the next time point based on the current values for the params
-        '''
-        time_diff = 2  # frame skipping
-        time_points = np.array([x *1 for x in range(time_diff)])
-        sol = odeint(self.sdot, S, time_points, tuple((params, Cin)))[1:]
-        pred_N = sol[-1, 0:2]
 
-        return pred_N
+    def predict(self, ode_params, S, Cin, time_points):
+        # uses sdot in utilities
+        sol = odeint(sdot, S, time_points, tuple((Cin, self.ode_params, 2)))[1:] #PUT THIS BACK FOR ONLINE
+
+
+        return sol
 
     """
     def find_minimum_online(self, full_sol, Cins, n_steps):

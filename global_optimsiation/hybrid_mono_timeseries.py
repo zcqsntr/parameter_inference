@@ -22,7 +22,7 @@ import math
 import matplotlib.animation as animation
 
 from hybrid_noise_test import six_hump_camel, ackleys_function
-from hybrid_PS_SGD import *
+from particle_swarm_optimiser import *
 
 
 '''
@@ -200,7 +200,7 @@ plt.xlabel('gamma')
 plt.ylabel('u_max')
 plt.plot([480000], [0.6])
 ani = animation.ArtistAnimation(fig, swarm.ims, interval=50, blit=True,repeat_delay=1000)
-ani.save('hybrid_mono_TS.mp4', bitrate = 1000)
+#ani.save('hybrid_mono_TS.mp4', bitrate = 1000)
 
 
 '''

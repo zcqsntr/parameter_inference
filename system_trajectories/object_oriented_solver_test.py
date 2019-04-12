@@ -5,6 +5,7 @@ import sys
 import os
 import yaml
 import matplotlib
+import scipy as sp
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append('/home/neythen/Desktop/Projects/masters_project/app/CBcurl_master/CBcurl')
 from utilities import *
@@ -37,6 +38,7 @@ num_species, num_controlled_species, num_N_states, N_bounds, num_Cin_states, Cin
 tSol = np.linspace(0, T_MAX, T_MAX+1)
 
 count = 0
+
 '''
 for N1 in range(2,20,2):
     print(N1)
@@ -62,59 +64,55 @@ for N1 in range(2,20,2):
                     count +=1
 
 
-
 print('number: ', count)
 '''
+
 X = np.append(initial_X, initial_C)
 X = np.append(X, initial_C0)
 xSol = np.array([X])
 Cin = np.array([0.1,0.1]).reshape(1, 2)
-Cins = [] # DO NPOT PUT INITIAL Cin IN HERE
 
-
+Cins = np.array(Cin)
 time_diff = 2
 
-for t in range(T_MAX):
-    if t % 1 == 0:
-        Cin = np.random.randint(0,2, size = (1,2)) * np.random.randint(1,10, size = (1,2))*0.1 # choose random C0
-    if X[0] < 2:
-        Cin[0][0] = np.random.randint(1,4, size = (1,1))
-    if X[1] < 2:
-        Cin[0][1] = np.random.randint(1,4, size = (1,1))
-
-    print(Cin)
-    print()
-    # get solution
-    sol = odeint(sdot, X, [t + x *1 for x in range(time_diff)], args=(Cin, ode_params, num_species))[1:]
-
-    X = sol[-1,:]
-
-    xSol = np.append(xSol,sol, axis = 0)
 
 
-    for _ in range(time_diff - 1):
-        Cins.append(Cin)
+sol  = []
+def solout(t,y):
+    sol.append([t,*y])
 
-    if (X[0] < 1/1000) or (X[1] < 1/1000):
-        break
 
-    if t == T_MAX -1:
-        print('coexistance')
+solver = sp.integrate.ode(sdot_object).set_integrator('lsoda', nsteps = 10000)
 
-Cins = np.array(Cins).reshape(-1, 2)
+solver.set_initial_value(X, 0).set_f_params(Cin, ode_params, num_species)
+sol = []
+sol.append([0, *X])
+i = 0
+dt = 1
+
+# suppress Fortran-printed warning
+solver._integrator.iwork[2] = -1
+
+while solver.t < T_MAX:
+    print(i)
+    i += 1
+    solver.integrate(solver.t + dt)
+    sol.append([solver.t, *solver.y])
+    solver.set_initial_value(solver.y, solver.t)
+
+xSol = np.array(sol)
+
+#sol = odeint(sdot, X, [t + x *1 for x in range(time_diff)], args=(Cin, ode_params, num_species))[1:]
+
 print(xSol.shape)
-print(Cins.shape)
-print(Cins)
 
-#np.save('MPC_double_aux_rand.npy', xSol[0:-1])
-#np.save('MPC_double_aux_Cins_rand.npy', Cins)
 
 # plot
 plt.figure(figsize = (16.0,12.0))
 xSol = np.array(xSol)
 labels = ['N1', 'N2', 'C1', 'C2', 'C0']
 for i in range(5):
-    plt.plot(np.linspace(0, len(xSol[:,0]) ,len(xSol[:,0])), xSol[:,i], label = labels[i])
+    plt.plot(xSol[:,0], xSol[:,i+1], label = labels[i])
 
 plt.legend()
 plt.show()

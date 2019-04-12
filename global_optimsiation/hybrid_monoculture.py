@@ -29,6 +29,86 @@ param_vec needs to be a row/column vector so need to reshape the parameters,
 then change them back
 
 '''
+
+
+class Monoculture():
+
+    def __init__(self, ode_params):
+        self.ode_params = ode_params
+
+    def sdot(self, S, t, params, Cin): # X is population vector, t is time, R is intrinsic growth rate vector, C is the rate limiting nutrient vector, A is interaction matrix
+        '''
+        Calculates and returns derivatives for the numerical solver odeint
+
+        Parameters:
+            S: current state
+            t: current time
+            Cin: array of the concentrations of the auxotrophic nutrients and the
+                common carbon source
+            params: list parameters for all the equations
+            num_species: the number of bacterial populations
+        Returns:
+            dsol: array of the derivatives for all state variables
+        '''
+
+        # extract variables
+
+
+        # autograd gives t as an array_box, need to convert to int
+        if str(type(t)) == '<class \'autograd.numpy.numpy_boxes.ArrayBox\'>': # sort this out
+            t = t._value
+            t = int(t)
+        else:
+            t = int(t)
+        t = min(Cin.shape[0] - 1, t) # to prevent solver from going past the max time
+
+        C0in = Cin[t]
+
+        #C0in = Cin
+        N = S[0]
+        C0 = S[1]
+        # extract parameters
+        q = self.ode_params[0]
+        y, Rmax = params[0:2]
+        Km =  self.ode_params[3]
+        R = self.monod(C0, Rmax, Km)
+
+        # calculate derivatives
+        dN = N * (R.astype(float) - q) # q term takes account of the dilution
+        dC0 = q*(C0in - C0) - 1/y*R*N
+
+        # consstruct derivative vector for odeint
+        dC0 = np.array([dC0])
+        dsol = np.append(dN, dC0)
+
+        return tuple(dsol)
+
+    def monod(self, C0, Rmax, Km0):
+        '''
+        Calculates the growth rate based on the monod equation
+
+        Parameters:
+            C: the concetrations of the auxotrophic nutrients for each bacterial
+                population
+            C0: concentration of the common carbon source
+            Rmax: array of the maximum growth rates for each bacteria
+            Km: array of the saturation constants for each auxotrophic nutrient
+            Km0: array of the saturation constant for the common carbon source for
+                each bacterial species
+        '''
+
+        # convert to numpy
+        growth_rate = Rmax * (C0/ (Km0 + C0))
+
+        return growth_rate
+
+    def predict(self, params, S, Cin, time_points):
+
+        sol = odeint(sdot, S, time_points, tuple((Cin, params, 2)))[1:] #PUT THIS BACK FOR ONLINE
+        return sol
+
+
+
 def predict(params, N, Cin):
     time_diff = 2  # frame skipping
     time_points = np.array([x *1 for x in range(time_diff)])
@@ -131,7 +211,8 @@ velocity_scaling = np.array([10000,10000]) * 0.00001
 n_particles = 50
 n_groups = 5
 cs = (2, 2)
-swarm = Swarm(domain, n_particles, n_groups, cs, velocity_scaling, ode_params)
+system = Monoculture(ode_params)
+swarm = Swarm(system, domain, n_particles, n_groups, cs, velocity_scaling, ode_params)
 
 initial_S = xSol[0,:]
 Cins = np.array([Cins[1]])
