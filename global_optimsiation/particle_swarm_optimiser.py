@@ -296,7 +296,7 @@ class Swarm():
                 for particle in group:
                     self.reset_particle(particle, current_S, constant, target, mode, i)
             '''
-
+        '''
             group_xs.append(x)
             group_ys.append(y)
 
@@ -309,7 +309,7 @@ class Swarm():
 
         im = plt.plot(*plotting_data)
         self.ims.append(im)
-
+        '''
 
 
     def find_minimum(self, initial_S, constant, target, n_steps, mode):
