@@ -6,9 +6,10 @@ import matplotlib.pyplot as plt
 import yaml
 import scipy.integrate as spi
 from scipy.integrate import odeint
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 print(ROOT_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'CBcurl_master', 'CBcurl'))
+sys.path.append(os.path.join(ROOT_DIR, 'Oxford'))
 sys.path.append(ROOT_DIR)
 
 
