@@ -2,13 +2,14 @@ import sys
 import os
 import yaml
 import matplotlib.pyplot as plt
+from multiprocessing import Pool
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.join(ROOT_DIR, 'app', 'CBcurl_master', 'CBcurl'))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from matplotlib import cm
-from utilities import *
+from inference_utils import *
 
 '''
 import autograd.numpy as np
@@ -271,6 +272,7 @@ class Swarm():
             y = []
 
             for particle in group:
+
                 '''
                 particle_loss = self.loss_function(particle.position, sol, Cin, actual_N)
 
@@ -312,12 +314,65 @@ class Swarm():
         '''
 
 
+    def particle_wrapper(self, particle,  loss_function, grad_wrapper, domain,  global_best_position, constant, current_S, target, mode, t):
+        return particle.step(loss_function, grad_wrapper, domain,  global_best_position, constant, current_S, target, mode, t)
+
+    def parallel_step(self, current_S, constant, target, mode, t):
+        '''
+        carries out one step of the algorithm for all particles
+        '''
+        colours = ['ro', 'bo', 'go', 'mo', 'ko'] # for plotting
+        group_xs = []
+        group_ys = []
+
+        for i,group in enumerate(self.particles):
+            x = []
+            y = []
+
+            particle_wrapper = lambda particle: particle.step(self.loss_function, self.grad_wrapper, self.domain, self.global_best_positions[i], constant, current_S, target, mode, t)
+            with Pool(len(group)) as p:
+
+                results = p.map(particle_wrapper, group)
+
+            # if particle has found a new best place
+            for result in results:
+                loss, position = result
+                if loss < self.global_best_values[i]:
+                    self.global_best_values[i] = copy.deepcopy(loss)
+                    self.global_best_positions[i] = copy.deepcopy(position)
+                    self.settle_times[i] = t
+                '''
+                x.append(particle.position[2])
+                y.append(particle.position[3])
+                '''
+
+            '''
+            if t - self.settle_times[i] > 20 and np.argmin(self.global_best_values) != i:
+                for particle in group:
+                    self.reset_particle(particle, current_S, constant, target, mode, i)
+            '''
+        '''
+            group_xs.append(x)
+            group_ys.append(y)
+
+        # add current frame to plot
+        plotting_data = []
+        for i in range(len(group_xs)):
+            plotting_data.append(group_xs[i])
+            plotting_data.append(group_ys[i])
+            plotting_data.append(colours[i])
+
+        im = plt.plot(*plotting_data)
+        self.ims.append(im)
+        '''
+
     def find_minimum(self, initial_S, constant, target, n_steps, mode):
 
         # iniitlise loss at initial positions
         for i,group in enumerate(self.particles):
             for particle in group:
                 particle.set_n_steps(n_steps)
+
                 loss = particle.evaluate(self.loss_function, initial_S, constant, target, mode)
 
                 #update swarm values based on new particles position
@@ -329,6 +384,9 @@ class Swarm():
                 except:
                     self.global_best_values[i] = copy.deepcopy(loss)
                     self.global_best_positions[i] = copy.deepcopy(particle.position)
+        print(self.global_best_values)
+
+
 
 
         for i in range(n_steps):
@@ -339,7 +397,59 @@ class Swarm():
                 print(self.global_best_values)
                 print(self.global_best_positions)
             '''
+            print(i)
+            print(self.global_best_values)
+            print(self.global_best_positions)
             self.step(initial_S, constant, target, mode, i)
+
+
+        return self.global_best_values, self.global_best_positions, self.ims
+
+    def parallel_find_minimum(self, initial_S, constant, target, n_steps, mode):
+
+        particle_wrapper = lambda particle: particle.evaulate(self.loss_function, initial_S, constant, target, mode)
+
+        # iniitlise loss at initial positions
+        for i,group in enumerate(self.particles):
+            for particle in group:
+                particle.set_n_steps(n_steps)
+
+
+
+            with Pool(len(group)) as p:
+
+                results = p.map(particle_wrapper, group)
+
+            for result in results:
+                loss, position = result
+                #update swarm values based on new particles position
+                try:
+                    if loss < self.global_best_values[i]:
+                        self.global_best_values[i] = copy.deepcopy(loss)
+                        self.global_best_positions[i] = copy.deepcopy(position)
+
+                except:
+                    self.global_best_values[i] = copy.deepcopy(loss)
+                    self.global_best_positions[i] = copy.deepcopy(position)
+
+        print(self.global_best_values)
+
+
+
+
+        for i in range(n_steps):
+
+            '''
+            if i %10 == 0:
+                print('step: ', i)
+                print(self.global_best_values)
+                print(self.global_best_positions)
+            '''
+            print(i)
+            print(self.global_best_values)
+            print(self.global_best_positions)
+            self.parallel_step(initial_S, constant, target, mode, i)
+
 
         return self.global_best_values, self.global_best_positions, self.ims
 
