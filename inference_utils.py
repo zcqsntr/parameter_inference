@@ -7,7 +7,7 @@ import yaml
 import scipy.integrate as spi
 from scipy.integrate import odeint
 
-ROOT_DIR = '/home/neythen/Desktop/Projects/masters_project/app/CBcurl_master/CBcurl'
+sys.path.append(os.path.join(ROOT_DIR, 'app', 'CBcurl_master', 'CBcurl'))
 sys.path.append(ROOT_DIR)
 
 
