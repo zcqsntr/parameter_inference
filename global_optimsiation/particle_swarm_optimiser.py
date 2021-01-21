@@ -397,9 +397,9 @@ class Swarm():
                 print(self.global_best_values)
                 print(self.global_best_positions)
             '''
-            print(i)
-            print(self.global_best_values)
-            print(self.global_best_positions)
+            print(i, flush = True)
+            print(self.global_best_values, flush=True)
+            print(self.global_best_positions, flush=True)
             self.step(initial_S, constant, target, mode, i)
 
 
