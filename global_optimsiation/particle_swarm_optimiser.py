@@ -401,9 +401,9 @@ class Swarm():
                 print(self.global_best_values, flush=True)
                 print(self.global_best_positions, flush=True)
 
-                f.write(i)
-                f.write(self.global_best_values)
-                f.write(self.global_best_positions)
+                f.write(str(i))
+                f.write(str(self.global_best_values))
+                f.write(str(self.global_best_positions))
                 self.step(initial_S, constant, target, mode, i)
 
 
