@@ -388,19 +388,23 @@ class Swarm():
 
 
 
+        with open("inference_results.txt", 'w') as f:
+            for i in range(n_steps):
 
-        for i in range(n_steps):
+                '''
+                if i %10 == 0:
+                    print('step: ', i)
+                    print(self.global_best_values)
+                    print(self.global_best_positions)
+                '''
+                print(i, flush = True)
+                print(self.global_best_values, flush=True)
+                print(self.global_best_positions, flush=True)
 
-            '''
-            if i %10 == 0:
-                print('step: ', i)
-                print(self.global_best_values)
-                print(self.global_best_positions)
-            '''
-            print(i, flush = True)
-            print(self.global_best_values, flush=True)
-            print(self.global_best_positions, flush=True)
-            self.step(initial_S, constant, target, mode, i)
+                f.write(i)
+                f.write(self.global_best_values)
+                f.write(self.global_best_positions)
+                self.step(initial_S, constant, target, mode, i)
 
 
         return self.global_best_values, self.global_best_positions, self.ims
